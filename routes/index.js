@@ -5,7 +5,6 @@ var uuid = require('node-uuid');
 // Require models
 var RefreshToken = require('../lib/models/refreshtoken');
 var Token = require('../lib/models/token');
-var IdToken = require('../lib/models/idtoken');
 var AuthCode = require('../lib/models/authcode');
 var Client = require('../lib/models/client');
 
@@ -148,51 +147,21 @@ router.post('/token', function(req, res) {
         });
         _refreshToken.save();
 
-        var _token;
-        var response;
-        if (client.scope && (client.scope.indexOf('openid') >= 0)) {
-          // OpenID Connect request
-          var _idToken = new IdToken({
-            iss: client.redirectUri,
-            aud: client.clientId,
-            userId: code.userId
-          });
-          _idToken.save();
+        var _token = new Token({
+          refreshToken: _refreshToken.token,
+          userId: code.userId
+        });
+        _token.save();
 
-          _token = new Token({
-            refreshToken: _refreshToken.token,
-            idToken: _idToken.sub,
-            userId: code.userId
-          });
-          _token.save();
+        // send the new token to the consumer
+        var response = {
+          access_token: _token.accessToken,
+          refresh_token: _token.refreshToken,
+          expires_in: _token.expiresIn,
+          token_type: _token.tokenType
+        };
 
-          // send the new token to the consumer
-          response = {
-            access_token: _token.accessToken,
-            refresh_token: _token.refreshToken,
-            id_token: _idToken.sub,
-            expires_in: _token.expiresIn,
-            token_type: _token.tokenType
-          };
-
-          res.json(response);
-        } else {
-          _token = new Token({
-            refreshToken: _refreshToken.token,
-            userId: code.userId
-          });
-          _token.save();
-
-          // send the new token to the consumer
-          response = {
-            access_token: _token.accessToken,
-            refresh_token: _token.refreshToken,
-            expires_in: _token.expiresIn,
-            token_type: _token.tokenType
-          };
-
-          res.json(response);
-        }
+        res.json(response);
       });
     });
   } else if (grantType === 'refresh_token') {
