@@ -225,18 +225,21 @@ router.get('/userinfo', authorize, function(req, res) {
 });
 
 /* GET Test route to create a new Client  */
-router.get('/', function(req, res) {
+router.get('/', function(req, res, next) {
   var client = new Client({
     clientId: uuid.v4(),
     clientSecret: uuid.v4(),
     name: 'Test',
-    // scope: 'openid',
     userId: 1,
     redirectUri: 'http://localhost:5000/callback'
   });
-  client.save();
-
-  res.json(client);
+  client.save(function(err) {
+    if (err) {
+      next(new Error('Client name exists already'));
+    } else {
+      res.json(client);
+    }
+  });
 });
 
 module.exports = router;
